@@ -44,7 +44,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
     - name: Cache NuGet packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
@@ -61,7 +61,7 @@ jobs:
       run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
@@ -77,7 +77,7 @@ jobs:
           --verbosity normal
     
     - name: Upload NuGet package artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: nuget-package
         path: ${{ env.PACKAGE_OUTPUT_PATH }}/*.nupkg
@@ -97,7 +97,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
     - name: Download NuGet package
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: nuget-package
         path: ${{ env.PACKAGE_OUTPUT_PATH }}
@@ -175,7 +175,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
     - name: Download NuGet package
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: nuget-package
         path: ${{ env.PACKAGE_OUTPUT_PATH }}
@@ -211,7 +211,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
     - name: Download NuGet package
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: nuget-package
         path: ${{ env.PACKAGE_OUTPUT_PATH }}
@@ -281,12 +281,9 @@ jobs:
     
     - name: Create GitHub Release
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name }}
-        release_name: TiMoch.Orleans.TestUtilities ${{ steps.package-version.outputs.version }}
+        name: TiMoch.Orleans.TestUtilities ${{ steps.package-version.outputs.version }}
         body: |
           ## TiMoch.Orleans.TestUtilities ${{ steps.package-version.outputs.version }}
           
@@ -305,16 +302,7 @@ jobs:
           ---
           
           🤖 *This release was automatically created by GitHub Actions*
+        files: |
+          ${{ env.PACKAGE_OUTPUT_PATH }}/TiMoch.Orleans.TestUtilities.${{ steps.package-version.outputs.version }}.nupkg
         draft: false
         prerelease: false
-    
-    - name: Upload package to release
-      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create-release.outputs.upload_url }}
-        asset_path: ${{ env.PACKAGE_OUTPUT_PATH }}/TiMoch.Orleans.TestUtilities.${{ steps.package-version.outputs.version }}.nupkg
-        asset_name: TiMoch.Orleans.TestUtilities.${{ steps.package-version.outputs.version }}.nupkg
-        asset_content_type: application/zip
