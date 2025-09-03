@@ -10,7 +10,7 @@
     
     <!-- NuGet Package Metadata -->
     <PackageId>TiMoch.Orleans.TestUtilities</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>TiMoch -- Julien De Groote</Authors>
     <Description>Testing utilities for Microsoft Orleans applications with NUnit integration. Provides base classes, cluster fixtures, and polling utilities for comprehensive Orleans grain testing.</Description>
     <PackageProjectUrl>https://github.com/timoch/timoch-orleans-testutilities</PackageProjectUrl>
