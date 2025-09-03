@@ -1,5 +1,11 @@
 name: NuGet Package CI/CD
 
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+  packages: write
+
 on:
   push:
     tags:
