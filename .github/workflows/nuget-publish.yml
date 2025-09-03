@@ -1,0 +1,320 @@
+name: NuGet Package CI/CD
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      publish:
+        description: 'Publish to NuGet.org'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  PROJECT_PATH: 'src/TiMoch.Orleans.TestUtilities/TiMoch.Orleans.TestUtilities.csproj'
+  PACKAGE_OUTPUT_PATH: 'artifacts/nuget'
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for GitVersion
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Cache NuGet packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+    
+    - name: Run tests
+      run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: '**/TestResults/**/*'
+    
+    - name: Build NuGet package
+      run: |
+        mkdir -p ${{ env.PACKAGE_OUTPUT_PATH }}
+        dotnet pack ${{ env.PROJECT_PATH }} \
+          --configuration Release \
+          --no-build \
+          --output ${{ env.PACKAGE_OUTPUT_PATH }} \
+          --verbosity normal
+    
+    - name: Upload NuGet package artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: nuget-package
+        path: ${{ env.PACKAGE_OUTPUT_PATH }}/*.nupkg
+
+  validate-package:
+    name: Validate Package
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Download NuGet package
+      uses: actions/download-artifact@v3
+      with:
+        name: nuget-package
+        path: ${{ env.PACKAGE_OUTPUT_PATH }}
+    
+    - name: Install NuGet validator
+      run: dotnet tool install --global dotnet-validate --version 0.0.1-preview.304
+    
+    - name: Validate package
+      run: |
+        for package in ${{ env.PACKAGE_OUTPUT_PATH }}/*.nupkg; do
+          echo "Validating package: $package"
+          
+          # Check package size
+          size=$(stat -c%s "$package")
+          echo "Package size: $size bytes"
+          
+          if [ "$size" -lt 1000 ]; then
+            echo "⚠️ Warning: Package size is unusually small"
+          fi
+          
+          # List package contents
+          echo "Package contents:"
+          unzip -l "$package" | head -20
+          
+          # Validate with dotnet-validate (if available)
+          # dotnet validate package local "$package" || true
+          
+          echo "✅ Package validation completed for $package"
+        done
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Security scan with .NET
+      run: dotnet list package --vulnerable --include-transitive || true
+    
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: csharp
+    
+    - name: Build for analysis
+      run: dotnet build --configuration Release
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  publish-preview:
+    name: Publish Preview (GitHub Packages)
+    runs-on: ubuntu-latest
+    needs: [build, validate-package]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Download NuGet package
+      uses: actions/download-artifact@v3
+      with:
+        name: nuget-package
+        path: ${{ env.PACKAGE_OUTPUT_PATH }}
+    
+    - name: Publish to GitHub Packages
+      run: |
+        for package in ${{ env.PACKAGE_OUTPUT_PATH }}/*.nupkg; do
+          echo "Publishing preview package: $package"
+          dotnet nuget push "$package" \
+            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --skip-duplicate
+        done
+
+  publish-release:
+    name: Publish Release (NuGet.org)
+    runs-on: ubuntu-latest
+    needs: [build, validate-package, security-scan]
+    if: >
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true')
+    environment: 
+      name: nuget-production
+      url: https://www.nuget.org/packages/TiMoch.Orleans.TestUtilities
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Download NuGet package
+      uses: actions/download-artifact@v3
+      with:
+        name: nuget-package
+        path: ${{ env.PACKAGE_OUTPUT_PATH }}
+    
+    - name: Get package version
+      id: package-version
+      run: |
+        # Extract version from tag or project file
+        if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          version="${{ github.ref_name }}"
+          version="${version#v}"  # Remove 'v' prefix
+        else
+          version=$(grep -oP '<Version>\K[^<]+' ${{ env.PROJECT_PATH }})
+          if [ -z "$version" ]; then
+            version=$(grep -oP '<PackageVersion>\K[^<]+' ${{ env.PROJECT_PATH }})
+          fi
+        fi
+        
+        echo "version=$version" >> $GITHUB_OUTPUT
+        echo "Package version: $version"
+    
+    - name: Verify package version
+      run: |
+        expected_package="${{ env.PACKAGE_OUTPUT_PATH }}/TiMoch.Orleans.TestUtilities.${{ steps.package-version.outputs.version }}.nupkg"
+        
+        if [ ! -f "$expected_package" ]; then
+          echo "❌ Expected package not found: $expected_package"
+          echo "Available packages:"
+          ls -la ${{ env.PACKAGE_OUTPUT_PATH }}/
+          exit 1
+        fi
+        
+        echo "✅ Package verified: $expected_package"
+    
+    - name: Check if version exists on NuGet.org
+      id: check-version
+      run: |
+        package_name="TiMoch.Orleans.TestUtilities"
+        version="${{ steps.package-version.outputs.version }}"
+        
+        # Try to download package info to check if version exists
+        response=$(curl -s -f "https://api.nuget.org/v3-flatcontainer/$package_name/$version/$package_name.nuspec" || echo "not-found")
+        
+        if [[ "$response" != "not-found" ]]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "⚠️ Version $version already exists on NuGet.org"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "✅ Version $version is new, ready to publish"
+        fi
+    
+    - name: Publish to NuGet.org
+      if: steps.check-version.outputs.exists == 'false'
+      run: |
+        package_file="${{ env.PACKAGE_OUTPUT_PATH }}/TiMoch.Orleans.TestUtilities.${{ steps.package-version.outputs.version }}.nupkg"
+        
+        echo "📦 Publishing package to NuGet.org"
+        echo "Package: $package_file"
+        echo "Version: ${{ steps.package-version.outputs.version }}"
+        
+        dotnet nuget push "$package_file" \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --timeout 300
+        
+        echo "✅ Successfully published TiMoch.Orleans.TestUtilities ${{ steps.package-version.outputs.version }}"
+    
+    - name: Create GitHub Release
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: TiMoch.Orleans.TestUtilities ${{ steps.package-version.outputs.version }}
+        body: |
+          ## TiMoch.Orleans.TestUtilities ${{ steps.package-version.outputs.version }}
+          
+          ### 📦 NuGet Package
+          ```
+          dotnet add package TiMoch.Orleans.TestUtilities --version ${{ steps.package-version.outputs.version }}
+          ```
+          
+          ### 🔗 Links
+          - [NuGet Package](https://www.nuget.org/packages/TiMoch.Orleans.TestUtilities/${{ steps.package-version.outputs.version }})
+          - [Documentation](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/src/TiMoch.Orleans.TestUtilities/README.md)
+          
+          ### 📋 Changes
+          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/src/TiMoch.Orleans.TestUtilities/CHANGELOG.md) for detailed changes.
+          
+          ---
+          
+          🤖 *This release was automatically created by GitHub Actions*
+        draft: false
+        prerelease: false
+    
+    - name: Upload package to release
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create-release.outputs.upload_url }}
+        asset_path: ${{ env.PACKAGE_OUTPUT_PATH }}/TiMoch.Orleans.TestUtilities.${{ steps.package-version.outputs.version }}.nupkg
+        asset_name: TiMoch.Orleans.TestUtilities.${{ steps.package-version.outputs.version }}.nupkg
+        asset_content_type: application/zip

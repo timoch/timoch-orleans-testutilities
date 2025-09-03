@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <IsTestProject>false</IsTestProject>
+    <RootNamespace>TiMoch.Orleans.TestUtilities</RootNamespace>
+    
+    <!-- NuGet Package Metadata -->
+    <PackageId>TiMoch.Orleans.TestUtilities</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>TiMoch -- Julien De Groote</Authors>
+    <Description>Testing utilities for Microsoft Orleans applications with NUnit integration. Provides base classes, cluster fixtures, and polling utilities for comprehensive Orleans grain testing.</Description>
+    <PackageProjectUrl>https://github.com/timoch/timoch-orleans-testutilities</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>orleans;testing;nunit;distributed;actors;grains;testutilities</PackageTags>
+    <RepositoryUrl>https://github.com/timoch/timoch-orleans-testutilities</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Initial release with Orleans test cluster fixtures, base test classes, and polling utilities.</PackageReleaseNotes>
+    <Copyright>Copyright (c) 2025 TiMoch -- Julien De Groote</Copyright>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.TestingHost" Version="9.1.2" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
