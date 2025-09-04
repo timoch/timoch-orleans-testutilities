@@ -131,8 +131,6 @@ update_project_file() {
         return
     fi
     
-    # Create backup
-    cp "$PROJECT_FILE" "${PROJECT_FILE}.backup"
     
     # Update version tags
     sed -i "s/<Version>[^<]*<\/Version>/<Version>$new_version<\/Version>/g; s/<PackageVersion>[^<]*<\/PackageVersion>/<PackageVersion>$new_version<\/PackageVersion>/g" "$PROJECT_FILE"
@@ -179,8 +177,6 @@ EOF
         return
     fi
     
-    # Create backup
-    cp "$CHANGELOG_FILE" "${CHANGELOG_FILE}.backup"
     
     # Add new version entry after [Unreleased]
     sed -i "/## \[Unreleased\]/a\\
@@ -307,15 +303,6 @@ main() {
         log_warning "DRY RUN - No changes will be made"
     fi
     
-    # Ask for confirmation if not dry run
-    if [ "$dry_run" = "false" ]; then
-        echo -n "Proceed with version bump? (y/N): "
-        read -r confirmation
-        if [[ ! $confirmation =~ ^[Yy]$ ]]; then
-            log_info "Version bump cancelled"
-            exit 0
-        fi
-    fi
     
     # Update files
     update_project_file "$new_version" "$dry_run"
