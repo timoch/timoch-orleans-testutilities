@@ -20,7 +20,7 @@ public abstract class OrleansTestClusterFixture
     /// <summary>
     /// Gets the shared test cluster instance.
     /// </summary>
-    protected static TestCluster Cluster => cluster ?? throw new InvalidOperationException("Test cluster not initialized");
+    public static TestCluster Cluster => cluster ?? throw new InvalidOperationException("Test cluster not initialized");
 
     /// <summary>
     /// Gets the grain factory from the shared cluster.
