@@ -7,6 +7,7 @@
     <IsPackable>true</IsPackable>
     <IsTestProject>false</IsTestProject>
     <RootNamespace>TiMoch.Orleans.TestUtilities</RootNamespace>
+    <NoWarn>$(NoWarn);CS1998</NoWarn>
     
     <!-- NuGet Package Metadata -->
     <PackageId>TiMoch.Orleans.TestUtilities</PackageId>
