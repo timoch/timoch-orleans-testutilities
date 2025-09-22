@@ -37,22 +37,22 @@ public abstract class OrleansTestBase
     /// Sets up the test execution context for proper log routing.
     /// </summary>
     [SetUp]
-    public virtual void SetUp()
+    public virtual async Task SetUp()
     {
         // Set the current test execution context for proper log routing
         OrleansTestClusterFixture.CurrentTestExecutionContext = NUnit.Framework.Internal.TestExecutionContext.CurrentContext;
-        
+
         if (IsDebugging)
         {
             TestContext.WriteLine("🔍 Debug mode enabled - timeouts disabled");
         }
     }
-    
+
     /// <summary>
     /// Clears the test execution context.
     /// </summary>
     [TearDown]
-    public virtual void TearDown()
+    public virtual async Task TearDown()
     {
         // Clear the current test execution context
         OrleansTestClusterFixture.CurrentTestExecutionContext = null;
