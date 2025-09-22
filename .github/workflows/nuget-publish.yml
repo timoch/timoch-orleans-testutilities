@@ -1,7 +1,7 @@
 name: NuGet Package CI/CD
 
 permissions:
-  contents: read
+  contents: write  # Need write permission to create releases
   actions: read
   security-events: write
   packages: write
