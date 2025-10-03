@@ -174,13 +174,18 @@ validate_package() {
     
     log_info "Validating package: $package_file"
     
-    # Check package size
+    # Check package size (Git Bash/cross-platform compatible)
     local size
-    size=$(stat -f%z "$package_file" 2>/dev/null || stat -c%s "$package_file" 2>/dev/null || echo "0")
-    if [ "$size" -lt 1000 ]; then
-        log_warning "Package size is unusually small: $size bytes"
+    if command -v stat &> /dev/null; then
+        # Try BSD stat first (macOS), then GNU stat (Linux/Git Bash), then fallback to ls
+        size=$(stat -f%z "$package_file" 2>/dev/null || stat -c%s "$package_file" 2>/dev/null || ls -l "$package_file" 2>/dev/null | awk '{print $5}' || echo "0")
+        if [ "$size" -lt 1000 ]; then
+            log_warning "Package size is unusually small: $size bytes"
+        else
+            log_info "Package size: $size bytes"
+        fi
     else
-        log_info "Package size: $size bytes"
+        log_warning "stat command not available, skipping size check"
     fi
     
     # Verify package contents using dotnet

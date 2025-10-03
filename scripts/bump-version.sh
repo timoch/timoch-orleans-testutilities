@@ -131,9 +131,10 @@ update_project_file() {
         return
     fi
     
-    
-    # Update version tags
-    sed -i "s/<Version>[^<]*<\/Version>/<Version>$new_version<\/Version>/g; s/<PackageVersion>[^<]*<\/PackageVersion>/<PackageVersion>$new_version<\/PackageVersion>/g" "$PROJECT_FILE"
+
+    # Update version tags (Git Bash compatible)
+    sed -i.bak "s/<Version>[^<]*<\/Version>/<Version>$new_version<\/Version>/g; s/<PackageVersion>[^<]*<\/PackageVersion>/<PackageVersion>$new_version<\/PackageVersion>/g" "$PROJECT_FILE"
+    rm -f "$PROJECT_FILE.bak"
     
     log_success "Updated $PROJECT_FILE with version $new_version"
 }
@@ -177,14 +178,15 @@ EOF
         return
     fi
     
-    
-    # Add new version entry after [Unreleased]
-    sed -i "/## \[Unreleased\]/a\\
+
+    # Add new version entry after [Unreleased] (Git Bash compatible)
+    sed -i.bak "/## \[Unreleased\]/a\\
 \\
 ## [$new_version] - $date\\
 \\
 ### Changed\\
 - Version bump to $new_version" "$CHANGELOG_FILE"
+    rm -f "$CHANGELOG_FILE.bak"
     
     log_success "Updated $CHANGELOG_FILE with version $new_version"
 }
