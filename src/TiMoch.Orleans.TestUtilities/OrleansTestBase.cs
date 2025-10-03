@@ -91,8 +91,7 @@ public abstract class OrleansTestBase
             await Task.Delay(actualPollInterval);
         }
         
-        Assert.Fail($"{timeoutMessage}. Timeout: {actualTimeout}. Last value: {lastValue}");
-        return lastValue; // Never reached
+        throw new PollForConditionFailedException($"{timeoutMessage}. Timeout: {actualTimeout}. Last value: {lastValue}");
     }
 
     /// <summary>
